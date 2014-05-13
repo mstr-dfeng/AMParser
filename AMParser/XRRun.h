@@ -32,5 +32,6 @@
 {
 	NSMutableArray *sampleData;
 }
+- (NSString *)parseTracefile:(NSString *)target;
 
 @end
