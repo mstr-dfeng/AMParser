@@ -57,7 +57,7 @@ int main(int argc, const char *argv[])
         NSString *target = [NSString stringWithUTF8String:argv[2]];
         
         NSFileManager *fileManager = [NSFileManager defaultManager];
-        NSString *workihngDic = [fileManager currentDirectoryPath];
+        NSString *workingDic = [fileManager currentDirectoryPath];
         
         NSString *inputTraceFile = [[NSString stringWithUTF8String:argv[1]] stringByExpandingTildeInPath];
         NSString *inputInstrumentDataFile = [NSString stringWithFormat:@"%@/instrument_data", inputTraceFile];
@@ -74,6 +74,7 @@ int main(int argc, const char *argv[])
             NSString *runDataFolder = [NSString stringWithFormat:@"%@/%@/run_data", inputInstrumentDataFile, UUIDfolder];
             NSArray *zipFiles = [fileManager contentsOfDirectoryAtPath:runDataFolder error:&error];
             //in case there are more than 1 zip file
+            int i=0;
             for (NSString *zipFile in zipFiles) {
                 if (error)
                 {
@@ -87,7 +88,7 @@ int main(int argc, const char *argv[])
                 [task setLaunchPath: @"/usr/bin/unzip"];
                 
                 NSArray *arguments;
-                arguments = @[@"-o", @"-j", resultZipFile, @"-d", workihngDic];
+                arguments = @[@"-o", @"-j", resultZipFile, @"-d", workingDic];
                 [task setArguments: arguments];
                 
                 NSPipe *pipe;
@@ -110,7 +111,7 @@ int main(int argc, const char *argv[])
                 // Read the trace file into memory
                 printf ("Read trace file into memory. Please wait.\n");
                 NSString *unzippedFile = [zipFile substringToIndex:(zipFile.length-4)]; //remove ".zip"
-                NSString *resultUnzippedFile = [NSString stringWithFormat:@"%@/%@",workihngDic,unzippedFile];
+                NSString *resultUnzippedFile = [NSString stringWithFormat:@"%@/%@",workingDic,unzippedFile];
                 NSURL *traceFile = [NSURL fileURLWithPath:[resultUnzippedFile stringByExpandingTildeInPath]];
                 NSData *traceData = [NSData dataWithContentsOfURL:traceFile];
                 
@@ -119,7 +120,20 @@ int main(int argc, const char *argv[])
                 
                 @try {
                     XRActivityInstrumentRun *run = [NSUnarchiver unarchiveObjectWithData:traceData];
-                    printf("\n%s\n", [[run parseTracefile:target] UTF8String]);
+                    NSString *parsedResult = [run parseTracefile:target];
+                    printf("\n%s\n", [parsedResult UTF8String]);
+
+                    //write result into log file
+                    NSString *resultFile = [NSString stringWithFormat:@"%@/%@_mem%d.log",workingDic,target,i];
+                    i = i+1;
+                    NSError *error;
+                    [parsedResult writeToFile:resultFile atomically:YES encoding:NSUTF8StringEncoding error:&error];
+                    if (error){
+                        NSLog(@"Fail to write result log into file：%@",[error localizedDescription]);
+                        
+                    }else{
+                        NSLog(@"Succeed to write result log into file");
+                    }
                 }
                 @catch (NSException *exception) {
                     printf ("This zip file doesn't have result data, skip it.\n");
